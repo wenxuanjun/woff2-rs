@@ -12,9 +12,9 @@ readme = "readme.md"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-brotli = { version = "3.3.3", default-features = false, features = ["std"] }
-bytes = "1.1.0"
-four-cc = "0.2.0"
+brotli = { version = "3.3.3", default-features = false }
+bytes = { version = "1.1.0", default-features = false }
+four-cc = { version = "0.2.0", default-features = false }
 safer-bytes = "0.2.0"
 thiserror = "1.0.30"
 bitvec = "1.0.0"
@@ -22,3 +22,7 @@ bitvec = "1.0.0"
 [dev-dependencies]
 clap = { version = "3.1.6", features = ["derive"] }
 ttf-parser = "0.15.0"
+
+[features]
+default = ["std"]
+std = ["brotli/std", "bytes/std", "four-cc/std"]

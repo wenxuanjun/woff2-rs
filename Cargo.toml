@@ -13,8 +13,8 @@ readme = "readme.md"
 
 [dependencies]
 brotli = { version = "3.3.3", default-features = false }
-bytes = { version = "1.1.0", default-features = false }
-four-cc = { version = "0.2.0", default-features = false }
+bytes = { version = "1.7.1", default-features = false }
+four-cc = { version = "0.4.0", default-features = false }
 safer-bytes = "0.2.0"
 thiserror = "1.0.30"
 bitvec = "1.0.0"

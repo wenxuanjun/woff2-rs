@@ -1,5 +1,4 @@
 //! Interface for decoding WOFF2 files
-
 use bytes::Buf;
 use thiserror::Error;
 
@@ -92,7 +91,91 @@ pub fn convert_woff2_to_ttf(input_buffer: &mut impl Buf) -> Result<Vec<u8>, Deco
     let mut decompressed_tables =
         Vec::with_capacity(table_directory.uncompressed_length.try_into().unwrap());
 
+    #[cfg(feature = "std")]
     brotli::BrotliDecompress(&mut input_buffer.reader(), &mut decompressed_tables)?;
+
+    #[cfg(not(feature = "std"))]
+    let decompressed_tables = {
+        use alloc_no_stdlib::*;
+        use brotli::*;
+        use core::ops;
+
+        #[derive(Debug)]
+        pub struct BufReader<'a, B: Buf> {
+            buf: &'a mut B,
+        }
+
+        impl<'a, B: Buf> BufReader<'a, B> {
+            fn new(buf: &'a mut B) -> Self {
+                Self { buf }
+            }
+        }
+
+        impl<'a, B: Buf> CustomRead<&'static str> for BufReader<'a, B> {
+            fn read(self: &mut Self, data: &mut [u8]) -> Result<usize, &'static str> {
+                let len = data.len().min(self.buf.remaining());
+                if len == 0 {
+                    return Err("Unexpected EOF");
+                }
+
+                self.buf.copy_to_slice(&mut data[..len]);
+                Ok(len)
+            }
+        }
+
+        struct VecWriter {
+            vec: Vec<u8>,
+        }
+
+        impl VecWriter {
+            fn new(vec: Vec<u8>) -> Self {
+                Self { vec }
+            }
+
+            fn get(self) -> Vec<u8> {
+                self.vec
+            }
+        }
+
+        impl CustomWrite<&'static str> for VecWriter {
+            fn write(self: &mut Self, data: &[u8]) -> Result<usize, &'static str> {
+                self.vec.extend_from_slice(data);
+                Ok(data.len())
+            }
+
+            fn flush(self: &mut Self) -> Result<(), &'static str> {
+                Ok(())
+            }
+        }
+
+        declare_stack_allocator_struct!(MemPool, 4096, stack);
+        let mut brotli_input_buffer: [u8; 4096] = [0; 4096];
+        let mut brotli_output_buffer: [u8; 4096] = [0; 4096];
+
+        let mut u8_buffer = vec![0; 32 * 1024 * 1024].into_boxed_slice();
+        let mut u32_buffer = vec![0; 1024 * 1024].into_boxed_slice();
+        let mut hc_buffer = vec![HuffmanCode::default(); 4 * 1024 * 1024].into_boxed_slice();
+        let u8_allocator = MemPool::<u8>::new_allocator(&mut u8_buffer, bzero);
+        let u32_allocator = MemPool::<u32>::new_allocator(&mut u32_buffer, bzero);
+        let hc_allocator = MemPool::<HuffmanCode>::new_allocator(&mut hc_buffer, bzero);
+        let unexpected_eof_error_constant = "Unexpected EOF";
+
+        let mut reader = BufReader::new(input_buffer);
+        let mut writer = VecWriter::new(decompressed_tables);
+
+        let _ = brotli::BrotliDecompressCustomIo(
+            &mut reader,
+            &mut writer,
+            &mut brotli_input_buffer,
+            &mut brotli_output_buffer,
+            u8_allocator,
+            u32_allocator,
+            hc_allocator,
+            unexpected_eof_error_constant,
+        );
+
+        writer.get()
+    };
 
     let compressed_size = stream_start_remaining - input_buffer.remaining();
 
@@ -111,6 +194,7 @@ pub fn convert_woff2_to_ttf(input_buffer: &mut impl Buf) -> Result<Vec<u8>, Deco
         calculate_header_size(table_directory.tables.len())
     };
     out_buffer.resize(header_end, 0);
+
     let ttf_tables = table_directory.write_to_buf(&mut out_buffer, &decompressed_tables)?;
 
     let mut header_buffer = &mut out_buffer[..header_end];

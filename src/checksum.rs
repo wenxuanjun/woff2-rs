@@ -1,5 +1,5 @@
-use core::num::Wrapping;
 use bytes::BufMut;
+use core::num::Wrapping;
 use thiserror::Error;
 
 /// Calculates the sum of (big-endian) `u32`s in a block of data.

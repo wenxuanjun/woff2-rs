@@ -1,16 +1,20 @@
 [package]
-name = "woff2"
-version = "0.3.0"
+name = "woff2-no-std"
+version = "0.3.1"
+edition = "2021"
 authors = [
     "Brian Hanechak <brianh@cimpress.com>",
     "Emily Crandall Fleischman <emily.fleischman@cimpress.com>",
-    "Xuanjun Wen <wenxuanjun@yahoo.com>"
+    "Xuanjun Wen <wenxuanjun@yahoo.com>",
 ]
-edition = "2021"
-license = "Apache-2.0"
-keywords = ["woff2", "font", "parse"]
 description = "WOFF2 decompression library"
-repository = "https://github.com/Cimpress-MCP/woff2-rs"
+keywords = ["woff2", "font", "parse"]
+license = "Apache-2.0"
+repository = "https://github.com/wenxuanjun/woff2-rs"
+include = ["Cargo.toml", "README.md", "LICENSE", "src/**/*.rs"]
+
+[lib]
+name = "woff2"
 
 [features]
 std = [
@@ -21,12 +25,12 @@ std = [
     "bitvec/std",
 ]
 
+[dev-dependencies]
+ttf-parser = "0.25.1"
+
 [dependencies]
 brotli = { version = "8.0.2", default-features = false }
 bytes = { version = "1.11.1", default-features = false }
 four-cc = { version = "0.4.0", default-features = false }
 thiserror = { version = "2.0.18", default-features = false }
 bitvec = { version = "1.0.1", default-features = false, features = ["alloc"] }
-
-[dev-dependencies]
-ttf-parser = "0.25.1"

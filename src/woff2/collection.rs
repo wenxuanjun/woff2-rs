@@ -44,6 +44,7 @@ impl TryFrom<u32> for CollectionHeaderVersion {
 }
 
 /// A WOFF2 collection directory.
+#[allow(dead_code)]
 pub struct CollectionHeader {
     pub version: CollectionHeaderVersion,
     pub fonts: Vec<CollectionFontEntry>,
@@ -55,7 +56,7 @@ impl CollectionHeader {
         buf: &mut impl Buf,
         total_num_tables: u16,
     ) -> Result<Self, CollectionHeaderError> {
-        let version = buf.try_get_u32()?.try_into()?;
+        let version = SafeBuf::try_get_u32(buf)?.try_into()?;
         let num_fonts = buf.try_get_255_u16()?;
         let fonts = (0..num_fonts)
             .map(|_| {

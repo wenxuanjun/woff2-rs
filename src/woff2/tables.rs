@@ -7,7 +7,7 @@ use thiserror::Error;
 use crate::{
     buffer_util::{pad_to_multiple_of_four, Base128Error, BufExt, SafeBuf, TruncatedError},
     checksum::{calculate_checksum, set_checksum_adjustment, ChecksumError},
-    glyf_decoder::{decode_glyf_table, GlyfDecoderError},
+    glyf::{decode_glyf_table, GlyfDecoderError},
     ttf_header::TableRecord,
 };
 
@@ -160,6 +160,7 @@ impl Woff2TableDirectory {
 }
 
 /// A WOFF2 table directory entry.
+#[allow(dead_code)]
 #[derive(Debug, Copy, Clone)]
 pub struct TableDirectoryEntry {
     pub transformed: bool,
@@ -188,7 +189,7 @@ struct PartialTableDirectoryEntry {
 
 impl PartialTableDirectoryEntry {
     fn from_buf(buffer: &mut impl Buf) -> Result<Self, TableDirectoryError> {
-        let flags = buffer.try_get_u8()?;
+        let flags = SafeBuf::try_get_u8(buffer)?;
         let preprocessing_transformation_version = flags & 0xC0;
         let table_ref = flags & 0x3f;
         let tag = if table_ref == 0x3f {
@@ -339,7 +340,7 @@ mod tests {
     use four_cc::FourCC;
 
     use super::Woff2TableDirectory;
-    use crate::{test_resources::LATO_V22_LATIN_REGULAR, woff2::header::Woff2Header};
+    use crate::{test_data::LATO_V22_LATIN_REGULAR, woff2::header::Woff2Header};
 
     #[test]
     fn test_sample_font() {

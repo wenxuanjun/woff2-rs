@@ -1,5 +1,5 @@
-//! Types representing WOFF2 headers, table directories, and collection directories.
+//! Types representing WOFF2 headers, table metadata, and collections.
 
-pub mod collection_directory;
+pub mod collection;
 pub mod header;
-pub mod table_directory;
+pub mod tables;

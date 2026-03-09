@@ -54,7 +54,7 @@ where
     fn try_get_base_128(&mut self) -> Result<u32, Base128Error> {
         let mut accum = 0u32;
         for i in 0..5 {
-            let byte = self.try_get_u8()?;
+            let byte = SafeBuf::try_get_u8(self)?;
             // no leading 0s
             if i == 0 && byte == 0x80 {
                 return Err(Base128Error::LeadingZero);
@@ -76,11 +76,11 @@ where
         const ONE_MORE_BYTE_CODE_2: u8 = 254;
         const WORD_CODE: u8 = 253;
         const LOWEST_UCODE: u16 = 253;
-        let code = self.try_get_u8()?;
+        let code = SafeBuf::try_get_u8(self)?;
         match code {
-            WORD_CODE => self.try_get_u16(),
-            ONE_MORE_BYTE_CODE_1 => Ok(self.try_get_u8()? as u16 + LOWEST_UCODE),
-            ONE_MORE_BYTE_CODE_2 => Ok(self.try_get_u8()? as u16 + 2 * LOWEST_UCODE),
+            WORD_CODE => SafeBuf::try_get_u16(self),
+            ONE_MORE_BYTE_CODE_1 => Ok(SafeBuf::try_get_u8(self)? as u16 + LOWEST_UCODE),
+            ONE_MORE_BYTE_CODE_2 => Ok(SafeBuf::try_get_u8(self)? as u16 + 2 * LOWEST_UCODE),
             _ => Ok(code as u16),
         }
     }

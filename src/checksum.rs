@@ -10,11 +10,11 @@ use thiserror::Error;
 pub fn calculate_checksum(data: &[u8]) -> u32 {
     let chunks = data.chunks_exact(4);
     // maybe there's a more elegant way of doing this, but i think this is alright
-    let last = u32::from_be_bytes(match chunks.remainder() {
-        &[] => [0; 4],
-        &[b0] => [b0, 0, 0, 0],
-        &[b0, b1] => [b0, b1, 0, 0],
-        &[b0, b1, b2] => [b0, b1, b2, 0],
+    let last = u32::from_be_bytes(match *chunks.remainder() {
+        [] => [0; 4],
+        [b0] => [b0, 0, 0, 0],
+        [b0, b1] => [b0, b1, 0, 0],
+        [b0, b1, b2] => [b0, b1, b2, 0],
         _ => unreachable!("ChunksExact::remainder is guaranteed to return a slice of length < n"),
     });
     (chunks

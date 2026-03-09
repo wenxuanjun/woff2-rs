@@ -8,9 +8,9 @@ use crate::{
     magic_numbers::{TTF_CFF_FLAVOR, TTF_COLLECTION_FLAVOR, TTF_TRUE_TYPE_FLAVOR, WOFF2_SIGNATURE},
     ttf_header::{calculate_header_size, TableDirectory},
     woff2::{
-        collection_directory::{CollectionHeader, CollectionHeaderError},
+        collection::{CollectionHeader, CollectionHeaderError},
         header::{Woff2Header, Woff2HeaderError},
-        table_directory::{TableDirectoryError, Woff2TableDirectory, WriteTablesError, HEAD_TAG},
+        tables::{TableDirectoryError, Woff2TableDirectory, WriteTablesError, HEAD_TAG},
     },
 };
 
@@ -140,7 +140,7 @@ pub fn convert_woff2_to_ttf(input_buffer: &mut impl Buf) -> Result<Vec<u8>, Deco
 mod tests {
     use std::io::Cursor;
 
-    use crate::test_resources::{FONTAWESOME_REGULAR_400, LATO_V22_LATIN_REGULAR};
+    use crate::test_data::{FONTAWESOME_REGULAR_400, LATO_V22_LATIN_REGULAR};
 
     use super::convert_woff2_to_ttf;
 
@@ -149,7 +149,7 @@ mod tests {
         let buffer = LATO_V22_LATIN_REGULAR;
         let ttf = convert_woff2_to_ttf(&mut Cursor::new(buffer)).unwrap();
         assert_eq!(None, ttf_parser::fonts_in_collection(&ttf));
-        let _parsed_ttf = ttf_parser::Face::from_slice(&ttf, 1).unwrap();
+        let _parsed_ttf = ttf_parser::Face::parse(&ttf, 0).unwrap();
     }
     #[test]
     // Spec: https://www.w3.org/TR/WOFF2/#table_order
@@ -159,7 +159,7 @@ mod tests {
         let buffer = FONTAWESOME_REGULAR_400;
         let ttf = convert_woff2_to_ttf(&mut Cursor::new(buffer)).unwrap();
         assert_eq!(None, ttf_parser::fonts_in_collection(&ttf));
-        let _parsed_ttf = ttf_parser::Face::from_slice(&ttf, 1).unwrap();
+        let _parsed_ttf = ttf_parser::Face::parse(&ttf, 0).unwrap();
     }
 
     #[test]

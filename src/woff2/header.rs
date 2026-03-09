@@ -18,6 +18,7 @@ pub enum Woff2HeaderError {
     OverlappingStreams,
 }
 
+#[allow(dead_code)]
 pub struct Woff2Header {
     pub signature: FourCC,
     pub flavor: FourCC,
@@ -74,7 +75,7 @@ impl Woff2Header {
 mod tests {
     use std::io::Cursor;
 
-    use crate::test_resources::LATO_V22_LATIN_REGULAR;
+    use crate::test_data::LATO_V22_LATIN_REGULAR;
 
     use super::Woff2Header;
 

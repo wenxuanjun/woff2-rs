@@ -1,11 +1,12 @@
-use bytes::BufMut;
-use safer_bytes::SafeBuf;
+use alloc::vec::Vec;
 
-use crate::buffer_util::BufExt;
+use bytes::BufMut;
+
+use crate::buffer_util::{BufExt, SafeBuf};
 
 use super::{GlyfDecoderError, Woff2GlyfDecoder};
 
-impl<'a> Woff2GlyfDecoder<'a, &'a [u8]> {
+impl Woff2GlyfDecoder<'_> {
     pub(super) fn parse_composite_glyph(
         &mut self,
         glyph_index: u16,
@@ -38,7 +39,6 @@ impl<'a> Woff2GlyfDecoder<'a, &'a [u8]> {
             }
 
             output_buffer.put_u16(flag_word);
-
             self.composite_stream
                 .try_copy_to_buf(output_buffer, num_bytes)?;
 

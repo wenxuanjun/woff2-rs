@@ -1,5 +1,6 @@
 //! The WOFF2 collection directory
 
+use alloc::vec::Vec;
 use bytes::{Buf, BufMut};
 use four_cc::FourCC;
 use thiserror::Error;
@@ -118,7 +119,7 @@ impl CollectionHeader {
         // (https://www.w3.org/TR/WOFF2/#collection_dir_format)
         buffer.put_u32(CollectionHeaderVersion::V1 as u32);
         buffer.put_u32(self.fonts.len() as u32);
-        let font_directory_len = self.fonts.len() * std::mem::size_of::<u32>();
+        let font_directory_len = self.fonts.len() * core::mem::size_of::<u32>();
         let mut table_directory_offset = 12 + font_directory_len;
         for font in &self.fonts {
             buffer.put_u32(table_directory_offset as u32);
@@ -148,6 +149,6 @@ impl CollectionFontEntry {
     /// Calculates the size of the table directory for the font.
     pub fn calculate_directory_size(&self) -> usize {
         // 12 for table directory header, then the table records
-        12 + self.table_indices.len() * std::mem::size_of::<TableRecord>()
+        12 + self.table_indices.len() * core::mem::size_of::<TableRecord>()
     }
 }

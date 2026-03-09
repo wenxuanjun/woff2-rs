@@ -1,5 +1,6 @@
 //! Types representing OpenType table directories
 
+use alloc::vec::Vec;
 use bytes::BufMut;
 use four_cc::FourCC;
 
@@ -11,7 +12,7 @@ pub fn calculate_header_size(num_tables: usize) -> usize {
     // entry_selector: 2 bytes
     // range_shift:    2 bytes
     // table_records:  size_of::<TableRecord>() * num_tables
-    12 + std::mem::size_of::<TableRecord>() * num_tables
+    12 + core::mem::size_of::<TableRecord>() * num_tables
 }
 
 /// An OpenType table directory
@@ -85,7 +86,7 @@ impl TableRecord {
         buffer.put_u32(self.length);
     }
 
-    pub fn get_range(&self) -> std::ops::Range<usize> {
+    pub fn get_range(&self) -> core::ops::Range<usize> {
         self.offset as usize..self.offset as usize + self.length as usize
     }
 }

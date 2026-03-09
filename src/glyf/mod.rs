@@ -1,11 +1,10 @@
-use std::io::Cursor;
+use alloc::vec::Vec;
 
 use bitvec::{order::Msb0, slice::BitSlice};
 use bytes::{Buf, BufMut};
-use safer_bytes::{error::Truncated, SafeBuf};
 use thiserror::Error;
 
-use crate::buffer_util::pad_to_multiple_of_four;
+use crate::buffer_util::{pad_to_multiple_of_four, SafeBuf};
 
 mod composite;
 mod simple;
@@ -21,28 +20,22 @@ pub enum GlyfDecoderError {
     ExtraData,
 }
 
-impl From<Truncated> for GlyfDecoderError {
-    fn from(_: Truncated) -> Self {
+impl From<crate::buffer_util::TruncatedError> for GlyfDecoderError {
+    fn from(_: crate::buffer_util::TruncatedError) -> Self {
         GlyfDecoderError::Truncated
     }
 }
 
-impl From<std::io::Error> for GlyfDecoderError {
-    fn from(_: std::io::Error) -> Self {
-        GlyfDecoderError::Truncated
-    }
-}
-
-struct Woff2GlyfDecoder<'a, T> {
+struct Woff2GlyfDecoder<'a> {
     num_glyphs: u16,
-    n_contour_stream: Cursor<T>,
-    n_points_stream: Cursor<T>,
-    flag_stream: Cursor<T>,
-    glyph_stream: Cursor<T>,
-    composite_stream: Cursor<T>,
+    n_contour_stream: &'a [u8],
+    n_points_stream: &'a [u8],
+    flag_stream: &'a [u8],
+    glyph_stream: &'a [u8],
+    composite_stream: &'a [u8],
     bbox_bitmap: &'a BitSlice<u8, Msb0>,
-    bbox_stream: Cursor<T>,
-    instruction_stream: Cursor<T>,
+    bbox_stream: &'a [u8],
+    instruction_stream: &'a [u8],
     overlap_bitmap: Option<&'a BitSlice<u8, Msb0>>,
     index_format: u16,
 }
@@ -57,11 +50,8 @@ fn bit_stream_byte_length(bit_stream_bit_length: u16) -> u16 {
         << 2
 }
 
-impl<'a> Woff2GlyfDecoder<'a, &'a [u8]> {
+impl<'a> Woff2GlyfDecoder<'a> {
     fn has_read_all(&self) -> bool {
-        let _n_contour_stream_remaining = self.n_contour_stream.remaining();
-        let _n_points_stream_reminaing = self.n_points_stream.remaining();
-
         self.n_contour_stream.remaining() == 0
             && self.n_points_stream.remaining() == 0
             && self.flag_stream.remaining() == 0
@@ -72,7 +62,7 @@ impl<'a> Woff2GlyfDecoder<'a, &'a [u8]> {
     }
 
     fn new(transformed_glyf_table: &'a [u8]) -> Result<Self, GlyfDecoderError> {
-        let mut table_buf = Cursor::new(transformed_glyf_table);
+        let mut table_buf = transformed_glyf_table;
 
         const GLYF_HEADER_SIZE: usize = 36;
         if table_buf.remaining() < GLYF_HEADER_SIZE {
@@ -91,7 +81,8 @@ impl<'a> Woff2GlyfDecoder<'a, &'a [u8]> {
         let bbox_bitmap_size = bitmap_stream_length;
         let bbox_stream_size = table_buf.get_u32() - bbox_bitmap_size as u32;
         let instruction_stream_size = table_buf.get_u32();
-        assert_eq!(table_buf.position() as usize, GLYF_HEADER_SIZE);
+        let header_end = transformed_glyf_table.len() - table_buf.remaining();
+        assert_eq!(header_end, GLYF_HEADER_SIZE);
         let has_overlap_bit_stream = (option_flags & 0x01) == 0x01;
         let overlap_simple_bit_stream_size = if has_overlap_bit_stream {
             bit_stream_byte_length(num_glyphs)
@@ -99,7 +90,7 @@ impl<'a> Woff2GlyfDecoder<'a, &'a [u8]> {
             0
         };
 
-        let n_contour_stream_start: usize = table_buf.position().try_into().unwrap();
+        let n_contour_stream_start = header_end;
         let n_points_stream_start = n_contour_stream_start + n_contour_stream_size as usize;
         let flag_stream_start = n_points_stream_start + n_points_stream_size as usize;
         let glyph_stream_start = flag_stream_start + flag_stream_size as usize;
@@ -113,44 +104,29 @@ impl<'a> Woff2GlyfDecoder<'a, &'a [u8]> {
         if transformed_glyf_table.len() < overlap_bit_stream_end {
             return Err(GlyfDecoderError::Truncated);
         }
-        let n_contour_stream =
-            Cursor::new(&transformed_glyf_table[n_contour_stream_start..n_points_stream_start]);
-        let n_points_stream =
-            Cursor::new(&transformed_glyf_table[n_points_stream_start..flag_stream_start]);
-        let flag_stream =
-            Cursor::new(&transformed_glyf_table[flag_stream_start..glyph_stream_start]);
-        let glyph_stream =
-            Cursor::new(&transformed_glyf_table[glyph_stream_start..composite_stream_start]);
-        let composite_stream =
-            Cursor::new(&transformed_glyf_table[composite_stream_start..bbox_bitmap_start]);
-        let bbox_bitmap = BitSlice::<_, Msb0>::from_slice(
-            &transformed_glyf_table[bbox_bitmap_start..bbox_stream_start],
-        );
-        let bbox_stream =
-            Cursor::new(&transformed_glyf_table[bbox_stream_start..instruction_stream_start]);
-        let instruction_stream = Cursor::new(
-            &transformed_glyf_table[instruction_stream_start..overlap_bit_stream_start],
-        );
-        let overlap_bitmap = if has_overlap_bit_stream {
-            Some(BitSlice::<_, Msb0>::from_slice(
-                &transformed_glyf_table[overlap_bit_stream_start
-                    ..overlap_bit_stream_start + overlap_simple_bit_stream_size as usize],
-            ))
-        } else {
-            None
-        };
 
         Ok(Self {
             num_glyphs,
-            n_contour_stream,
-            n_points_stream,
-            flag_stream,
-            glyph_stream,
-            composite_stream,
-            bbox_bitmap,
-            bbox_stream,
-            instruction_stream,
-            overlap_bitmap,
+            n_contour_stream: &transformed_glyf_table
+                [n_contour_stream_start..n_points_stream_start],
+            n_points_stream: &transformed_glyf_table[n_points_stream_start..flag_stream_start],
+            flag_stream: &transformed_glyf_table[flag_stream_start..glyph_stream_start],
+            glyph_stream: &transformed_glyf_table[glyph_stream_start..composite_stream_start],
+            composite_stream: &transformed_glyf_table[composite_stream_start..bbox_bitmap_start],
+            bbox_bitmap: BitSlice::<_, Msb0>::from_slice(
+                &transformed_glyf_table[bbox_bitmap_start..bbox_stream_start],
+            ),
+            bbox_stream: &transformed_glyf_table[bbox_stream_start..instruction_stream_start],
+            instruction_stream: &transformed_glyf_table
+                [instruction_stream_start..overlap_bit_stream_start],
+            overlap_bitmap: if has_overlap_bit_stream {
+                Some(BitSlice::<_, Msb0>::from_slice(
+                    &transformed_glyf_table[overlap_bit_stream_start
+                        ..overlap_bit_stream_start + overlap_simple_bit_stream_size as usize],
+                ))
+            } else {
+                None
+            },
             index_format,
         })
     }

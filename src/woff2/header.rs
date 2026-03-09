@@ -73,15 +73,13 @@ impl Woff2Header {
 
 #[cfg(test)]
 mod tests {
-    use std::io::Cursor;
-
     use crate::test_data::LATO_V22_LATIN_REGULAR;
 
     use super::Woff2Header;
 
     #[test]
     fn test_header() {
-        let mut buffer = Cursor::new(LATO_V22_LATIN_REGULAR);
+        let mut buffer = &LATO_V22_LATIN_REGULAR[..];
         let header = Woff2Header::from_buf(&mut buffer).unwrap();
         assert!(header.is_valid_header().is_ok());
     }

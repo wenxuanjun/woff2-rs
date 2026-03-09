@@ -1,7 +1,47 @@
+use alloc::vec::Vec;
 use bytes::{Buf, BufMut};
 use four_cc::FourCC;
-pub use safer_bytes::{error::Truncated as TruncatedError, SafeBuf};
 use thiserror::Error;
+
+#[derive(Error, Debug, Clone, Copy, PartialEq, Eq)]
+#[error("buffer truncated")]
+pub struct TruncatedError;
+
+pub trait SafeBuf: Buf {
+    fn try_get_u8(&mut self) -> Result<u8, TruncatedError> {
+        if self.remaining() < 1 {
+            Err(TruncatedError)
+        } else {
+            Ok(self.get_u8())
+        }
+    }
+
+    fn try_get_u16(&mut self) -> Result<u16, TruncatedError> {
+        if self.remaining() < 2 {
+            Err(TruncatedError)
+        } else {
+            Ok(self.get_u16())
+        }
+    }
+
+    fn try_get_u32(&mut self) -> Result<u32, TruncatedError> {
+        if self.remaining() < 4 {
+            Err(TruncatedError)
+        } else {
+            Ok(self.get_u32())
+        }
+    }
+
+    fn try_get_i16(&mut self) -> Result<i16, TruncatedError> {
+        if self.remaining() < 2 {
+            Err(TruncatedError)
+        } else {
+            Ok(self.get_i16())
+        }
+    }
+}
+
+impl<T: Buf + ?Sized> SafeBuf for T {}
 
 #[derive(Error, Debug)]
 pub enum Base128Error {
@@ -55,11 +95,9 @@ where
         let mut accum = 0u32;
         for i in 0..5 {
             let byte = SafeBuf::try_get_u8(self)?;
-            // no leading 0s
             if i == 0 && byte == 0x80 {
                 return Err(Base128Error::LeadingZero);
             }
-            // if any of the top seven bits are set, << 7 would overflow
             if accum >> 25 != 0 {
                 return Err(Base128Error::Overflow);
             }
@@ -108,7 +146,6 @@ where
     }
 }
 
-/// Pads the buffer with zeros so its lenght is a multiple of four
 pub fn pad_to_multiple_of_four(buffer: &mut Vec<u8>) {
     if buffer.len() & 3 != 0 {
         let new_len = (buffer.len() + 3) & !3;
@@ -118,12 +155,14 @@ pub fn pad_to_multiple_of_four(buffer: &mut Vec<u8>) {
 
 #[cfg(test)]
 mod tests {
-    use std::io::Cursor;
+    use alloc::vec::Vec;
+
+    use bytes::{Buf, BufMut};
 
     use super::BufExt;
 
     fn test_get_255_u16(expected: u16, data: &[u8]) {
-        let mut buf = Cursor::new(data);
+        let mut buf = data;
         let result = buf.try_get_255_u16();
         assert_eq!(expected, result.unwrap());
     }
@@ -147,22 +186,21 @@ mod tests {
 
     #[test]
     fn uint_base_128_0_works() {
-        let mut buf = Cursor::new(&[0]);
+        let mut buf = &[0][..];
         let result = buf.try_get_base_128();
         assert_eq!(0, result.unwrap());
     }
 
     #[test]
     fn uint_base_128_128_works() {
-        let mut buf = Cursor::new(&[0x81u8, 0u8]);
+        let mut buf = &[0x81u8, 0u8][..];
         let result = buf.try_get_base_128();
         assert_eq!(128, result.unwrap());
     }
 
     #[test]
     fn try_copy_to_buf() {
-        use bytes::{Buf, BufMut};
-        let mut src: Cursor<&[u8]> = Cursor::new(&[42; 11]);
+        let mut src: &[u8] = &[42; 11];
         let mut dest = Vec::new();
 
         src.try_copy_to_buf(&mut dest, 5).unwrap();

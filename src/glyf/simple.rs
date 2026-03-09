@@ -1,13 +1,12 @@
-use std::io::Write;
+use alloc::vec::Vec;
 
 use bytes::BufMut;
-use safer_bytes::SafeBuf;
 
-use crate::buffer_util::BufExt;
+use crate::buffer_util::{BufExt, SafeBuf};
 
 use super::{triplet::COORD_LUT, GlyfDecoderError, Woff2GlyfDecoder};
 
-impl<'a> Woff2GlyfDecoder<'a, &'a [u8]> {
+impl Woff2GlyfDecoder<'_> {
     pub(super) fn parse_simple_glyph(
         &mut self,
         number_of_contours: i16,
@@ -21,7 +20,6 @@ impl<'a> Woff2GlyfDecoder<'a, &'a [u8]> {
         let mut y_coordinates_stream: Vec<u8> = Vec::new();
 
         let mut running_total_points: u16 = 0;
-
         let overlap_simple_flag = match self.overlap_bitmap {
             Some(ob) if ob[glyph_index as usize] => 0x40,
             _ => 0x00,
@@ -35,11 +33,11 @@ impl<'a> Woff2GlyfDecoder<'a, &'a [u8]> {
         let mut x = 0i16;
         let mut y = 0i16;
 
-        for _contour_index in 0..number_of_contours {
+        for _ in 0..number_of_contours {
             let number_of_points = self.n_points_stream.try_get_255_u16()?;
             running_total_points += number_of_points;
             end_points_of_contours_stream.put_u16(running_total_points - 1);
-            for _point_index in 0..number_of_points {
+            for _ in 0..number_of_points {
                 let flags = SafeBuf::try_get_u8(&mut self.flag_stream)?;
                 let triplet = &COORD_LUT[(flags & 0x7f) as usize];
                 let data = match triplet.byte_count {
@@ -129,12 +127,12 @@ impl<'a> Woff2GlyfDecoder<'a, &'a [u8]> {
         output_buffer.put_i16(y_min);
         output_buffer.put_i16(x_max);
         output_buffer.put_i16(y_max);
-        output_buffer.write_all(&end_points_of_contours_stream)?;
+        output_buffer.extend_from_slice(&end_points_of_contours_stream);
         output_buffer.put_u16(instruction_length);
-        output_buffer.write_all(&instructions_stream)?;
-        output_buffer.write_all(&flags_stream)?;
-        output_buffer.write_all(&x_coordinates_stream)?;
-        output_buffer.write_all(&y_coordinates_stream)?;
+        output_buffer.extend_from_slice(&instructions_stream);
+        output_buffer.extend_from_slice(&flags_stream);
+        output_buffer.extend_from_slice(&x_coordinates_stream);
+        output_buffer.extend_from_slice(&y_coordinates_stream);
 
         Ok(())
     }

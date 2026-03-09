@@ -2,7 +2,6 @@ const LATO_V22_LATIN_REGULAR: &[u8] = include_bytes!("data/lato-v22-latin-regula
 
 use std::{
     fs,
-    io::Cursor,
     path::PathBuf,
     time::{SystemTime, UNIX_EPOCH},
 };
@@ -23,7 +22,7 @@ fn converts_font_file_to_ttf_file() {
     fs::write(&input_path, LATO_V22_LATIN_REGULAR).unwrap();
 
     let input = fs::read(&input_path).unwrap();
-    let ttf = woff2::convert_woff2_to_ttf(&mut Cursor::new(input)).unwrap();
+    let ttf = woff2::convert_woff2_to_ttf(&mut input.as_slice()).unwrap();
     fs::write(&output_path, &ttf).unwrap();
 
     let written_ttf = fs::read(&output_path).unwrap();

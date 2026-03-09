@@ -1,5 +1,6 @@
 //! The WOFF2 table directory
 
+use alloc::vec::Vec;
 use bytes::Buf;
 use four_cc::FourCC;
 use thiserror::Error;
@@ -175,7 +176,7 @@ pub struct TableDirectoryEntry {
 
 impl TableDirectoryEntry {
     /// Returns the range occupied by the table in the decompressed table data (e.g. for slicing)
-    pub fn get_source_range(&self) -> std::ops::Range<usize> {
+    pub fn get_source_range(&self) -> core::ops::Range<usize> {
         self.src_offset as usize..self.src_offset as usize + self.src_length as usize
     }
 }
@@ -335,7 +336,7 @@ fn push_simple_table_record(
 
 #[cfg(test)]
 mod tests {
-    use std::io::Cursor;
+    use alloc::vec::Vec;
 
     use four_cc::FourCC;
 
@@ -344,7 +345,7 @@ mod tests {
 
     #[test]
     fn test_sample_font() {
-        let mut buffer = Cursor::new(LATO_V22_LATIN_REGULAR);
+        let mut buffer = &LATO_V22_LATIN_REGULAR[..];
         let header = Woff2Header::from_buf(&mut buffer).unwrap();
         let tables = Woff2TableDirectory::from_buf(&mut buffer, header.num_tables).unwrap();
 

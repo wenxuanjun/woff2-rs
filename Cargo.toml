@@ -1,22 +1,32 @@
 [package]
 name = "woff2"
 version = "0.3.0"
-authors = ["Brian Hanechak <brianh@cimpress.com>", "Emily Crandall Fleischman <emily.fleischman@cimpress.com>"]
+authors = [
+    "Brian Hanechak <brianh@cimpress.com>",
+    "Emily Crandall Fleischman <emily.fleischman@cimpress.com>",
+    "Xuanjun Wen <wenxuanjun@yahoo.com>"
+]
 edition = "2021"
 license = "Apache-2.0"
 keywords = ["woff2", "font", "parse"]
 description = "WOFF2 decompression library"
 repository = "https://github.com/Cimpress-MCP/woff2-rs"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[features]
+std = [
+    "brotli/std",
+    "bytes/std",
+    "four-cc/std",
+    "thiserror/std",
+    "bitvec/std",
+]
 
 [dependencies]
-brotli = { version = "8.0.2", default-features = false, features = ["std"] }
-bytes = "1.11.1"
-four-cc = "0.4.0"
-safer-bytes = "0.2.0"
-thiserror = "2.0.18"
-bitvec = "1.0.1"
+brotli = { version = "8.0.2", default-features = false }
+bytes = { version = "1.11.1", default-features = false }
+four-cc = { version = "0.4.0", default-features = false }
+thiserror = { version = "2.0.18", default-features = false }
+bitvec = { version = "1.0.1", default-features = false, features = ["alloc"] }
 
 [dev-dependencies]
 ttf-parser = "0.25.1"

@@ -1,5 +1,4 @@
-use std::num::Wrapping;
-
+use core::num::Wrapping;
 use bytes::BufMut;
 use thiserror::Error;
 

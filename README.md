@@ -9,7 +9,7 @@ use woff2::decode::{convert_woff2_to_ttf, is_woff2};
 
 let buffer = std::fs::read("tests/data/lato-v22-latin-regular.woff2").unwrap();
 assert!(is_woff2(&buffer));
-let ttf = convert_woff2_to_ttf(&mut std::io::Cursor::new(buffer)).unwrap();
+let ttf = convert_woff2_to_ttf(&mut buffer.as_slice()).unwrap();
 // ... use `ttf` however you would use a loaded TTF file
 ```
 

@@ -5,8 +5,8 @@ use bytes::{Buf, BufMut};
 use four_cc::FourCC;
 use thiserror::Error;
 
-use crate::buffer_util::{BufExt, SafeBuf, TruncatedError};
-use crate::ttf_header::{TableDirectory, TableRecord};
+use crate::buffer::{BufExt, SafeBuf, TruncatedError};
+use crate::sfnt::{TableDirectory, TableRecord};
 
 #[derive(Debug, Error)]
 pub enum CollectionHeaderError {
@@ -107,7 +107,7 @@ impl CollectionHeader {
     /// Panics if the buffer does not have enough space for the header.
     pub fn write_to_buf(&self, buffer: &mut impl BufMut, tables: &[TableRecord]) {
         assert!(buffer.remaining_mut() >= self.calculate_header_size());
-        buffer.put_slice(&crate::magic_numbers::TTF_COLLECTION_FLAVOR.0);
+        buffer.put_slice(&crate::magic::TTF_COLLECTION_FLAVOR.0);
         // Always output v1, since the dsig fields in v2 need to be invalidated
         // anyway. This is allowed by the spec:
         //

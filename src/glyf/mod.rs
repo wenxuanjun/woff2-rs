@@ -1,14 +1,23 @@
 use alloc::vec::Vec;
-
 use bitvec::{order::Msb0, slice::BitSlice};
 use bytes::{Buf, BufMut};
 use thiserror::Error;
 
-use crate::buffer_util::{pad_to_multiple_of_four, SafeBuf};
+use crate::buffer::{pad_to_multiple_of_four, SafeBuf};
 
 mod composite;
 mod simple;
 mod triplet;
+
+pub fn decode_glyf_table(glyf_table: &[u8]) -> Result<(Vec<u8>, Vec<u8>), GlyfDecoderError> {
+    let mut decoder = Woff2GlyfDecoder::new(glyf_table)?;
+    let res = decoder.parse_all_glyphs()?;
+    if decoder.has_read_all() {
+        Ok(res)
+    } else {
+        Err(GlyfDecoderError::ExtraData)
+    }
+}
 
 #[derive(Error, Debug)]
 pub enum GlyfDecoderError {
@@ -20,8 +29,8 @@ pub enum GlyfDecoderError {
     ExtraData,
 }
 
-impl From<crate::buffer_util::TruncatedError> for GlyfDecoderError {
-    fn from(_: crate::buffer_util::TruncatedError) -> Self {
+impl From<crate::buffer::TruncatedError> for GlyfDecoderError {
+    fn from(_: crate::buffer::TruncatedError) -> Self {
         GlyfDecoderError::Truncated
     }
 }
@@ -149,8 +158,8 @@ impl<'a> Woff2GlyfDecoder<'a> {
     fn parse_all_glyphs(&mut self) -> Result<(Vec<u8>, Vec<u8>), GlyfDecoderError> {
         let loca_use_u32 = self.index_format > 0;
         let loca_capacity = (self.num_glyphs + 1) as usize * if loca_use_u32 { 4 } else { 2 };
-        let mut output_glyf_table: Vec<u8> = Vec::new();
-        let mut output_loca_table: Vec<u8> = Vec::with_capacity(loca_capacity);
+        let mut output_glyf_table = Vec::new();
+        let mut output_loca_table = Vec::with_capacity(loca_capacity);
         for glyph_index in 0..self.num_glyphs {
             if loca_use_u32 {
                 output_loca_table.put_u32(output_glyf_table.len().try_into().unwrap());
@@ -169,15 +178,5 @@ impl<'a> Woff2GlyfDecoder<'a> {
             output_loca_table.put_u16((output_glyf_table.len() / 2).try_into().unwrap());
         }
         Ok((output_glyf_table, output_loca_table))
-    }
-}
-
-pub fn decode_glyf_table(glyf_table: &[u8]) -> Result<(Vec<u8>, Vec<u8>), GlyfDecoderError> {
-    let mut decoder = Woff2GlyfDecoder::new(glyf_table)?;
-    let res = decoder.parse_all_glyphs()?;
-    if decoder.has_read_all() {
-        Ok(res)
-    } else {
-        Err(GlyfDecoderError::ExtraData)
     }
 }

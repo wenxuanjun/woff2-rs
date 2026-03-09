@@ -2,7 +2,7 @@ use alloc::vec::Vec;
 
 use bytes::BufMut;
 
-use crate::buffer_util::{BufExt, SafeBuf};
+use crate::buffer::{BufExt, SafeBuf};
 
 use super::{GlyfDecoderError, Woff2GlyfDecoder};
 

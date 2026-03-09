@@ -4,7 +4,7 @@
 
 ## Examples
 
-```no_run
+```rust,no_run
 use woff2::decode::{convert_woff2_to_ttf, is_woff2};
 
 let buffer = std::fs::read("tests/data/lato-v22-latin-regular.woff2").unwrap();

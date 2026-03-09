@@ -4,7 +4,7 @@ use bytes::Buf;
 use four_cc::FourCC;
 use thiserror::Error;
 
-use crate::{buffer_util::BufExt, magic_numbers::WOFF2_SIGNATURE};
+use crate::{buffer::BufExt, magic::WOFF2_SIGNATURE};
 
 #[derive(Error, Debug)]
 pub enum Woff2HeaderError {
@@ -79,7 +79,7 @@ mod tests {
 
     #[test]
     fn test_header() {
-        let mut buffer = &LATO_V22_LATIN_REGULAR[..];
+        let mut buffer = LATO_V22_LATIN_REGULAR;
         let header = Woff2Header::from_buf(&mut buffer).unwrap();
         assert!(header.is_valid_header().is_ok());
     }

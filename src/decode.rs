@@ -1,25 +1,19 @@
 //! Interface for decoding WOFF2 files
 
-use alloc::{
-    boxed::Box,
-    string::{String, ToString},
-    vec,
-    vec::Vec,
-};
-use brotli::{Allocator, CustomRead, CustomWrite, SliceWrapper, SliceWrapperMut};
+use alloc::string::{String, ToString};
+use alloc::vec::Vec;
 use bytes::Buf;
 use thiserror::Error;
 
-use crate::{
-    checksum::{calculate_font_checksum_adjustment, set_checksum_adjustment, ChecksumError},
-    magic_numbers::{TTF_CFF_FLAVOR, TTF_COLLECTION_FLAVOR, TTF_TRUE_TYPE_FLAVOR, WOFF2_SIGNATURE},
-    ttf_header::{calculate_header_size, TableDirectory},
-    woff2::{
-        collection::{CollectionHeader, CollectionHeaderError},
-        header::{Woff2Header, Woff2HeaderError},
-        tables::{TableDirectoryError, Woff2TableDirectory, WriteTablesError, HEAD_TAG},
-    },
-};
+use crate::brotli::decompress_to_vec;
+use crate::checksum::ChecksumError;
+use crate::checksum::{calculate_font_checksum_adjustment, set_checksum_adjustment};
+use crate::magic::*;
+use crate::sfnt::{calculate_header_size, TableDirectory};
+use crate::woff2::collection::{CollectionHeader, CollectionHeaderError};
+use crate::woff2::header::{Woff2Header, Woff2HeaderError};
+use crate::woff2::tables::{TableDirectoryError, Woff2TableDirectory};
+use crate::woff2::tables::{WriteTablesError, HEAD_TAG};
 
 #[derive(Error, Debug)]
 pub enum DecodeError {
@@ -31,25 +25,25 @@ pub enum DecodeError {
 
 impl From<ChecksumError> for DecodeError {
     fn from(e: ChecksumError) -> Self {
-        DecodeError::Invalid(e.to_string())
+        DecodeError::invalid(e)
     }
 }
 
 impl From<CollectionHeaderError> for DecodeError {
     fn from(e: CollectionHeaderError) -> Self {
-        DecodeError::Invalid(e.to_string())
+        DecodeError::invalid(e)
     }
 }
 
 impl From<TableDirectoryError> for DecodeError {
     fn from(e: TableDirectoryError) -> Self {
-        DecodeError::Invalid(e.to_string())
+        DecodeError::invalid(e)
     }
 }
 
 impl From<Woff2HeaderError> for DecodeError {
     fn from(e: Woff2HeaderError) -> Self {
-        DecodeError::Invalid(e.to_string())
+        DecodeError::invalid(e)
     }
 }
 
@@ -57,8 +51,15 @@ impl From<WriteTablesError> for DecodeError {
     fn from(e: WriteTablesError) -> Self {
         match e {
             WriteTablesError::Unsupported(e) => DecodeError::Unsupported(e),
-            _ => DecodeError::Invalid(e.to_string()),
+            _ => DecodeError::invalid(e),
         }
+    }
+}
+
+#[cfg(feature = "std")]
+impl From<std::io::Error> for DecodeError {
+    fn from(error: std::io::Error) -> Self {
+        DecodeError::invalid(error)
     }
 }
 
@@ -68,92 +69,9 @@ impl From<&'static str> for DecodeError {
     }
 }
 
-struct BrotliBufReader<'a, B>(&'a mut B);
-
-impl<B: Buf> CustomRead<&'static str> for BrotliBufReader<'_, B> {
-    fn read(&mut self, data: &mut [u8]) -> Result<usize, &'static str> {
-        let len = core::cmp::min(self.0.remaining(), data.len());
-        self.0.copy_to_slice(&mut data[..len]);
-        Ok(len)
-    }
-}
-
-struct VecWriter<'a>(&'a mut Vec<u8>);
-
-impl CustomWrite<&'static str> for VecWriter<'_> {
-    fn write(&mut self, data: &[u8]) -> Result<usize, &'static str> {
-        self.0.extend_from_slice(data);
-        Ok(data.len())
-    }
-
-    fn flush(&mut self) -> Result<(), &'static str> {
-        Ok(())
-    }
-}
-
-struct Rebox<T> {
-    inner: Box<[T]>,
-}
-
-impl<T> Default for Rebox<T> {
-    fn default() -> Self {
-        Self {
-            inner: Vec::new().into_boxed_slice(),
-        }
-    }
-}
-
-impl<T> SliceWrapper<T> for Rebox<T> {
-    fn slice(&self) -> &[T] {
-        &self.inner
-    }
-}
-
-impl<T> SliceWrapperMut<T> for Rebox<T> {
-    fn slice_mut(&mut self) -> &mut [T] {
-        &mut self.inner
-    }
-}
-
-#[derive(Clone, Copy, Default)]
-struct HeapAllocator;
-
-impl<T: Clone + Default> Allocator<T> for HeapAllocator {
-    type AllocatedMemory = Rebox<T>;
-
-    fn alloc_cell(&mut self, len: usize) -> Self::AllocatedMemory {
-        Rebox {
-            inner: vec![T::default(); len].into_boxed_slice(),
-        }
-    }
-
-    fn free_cell(&mut self, _data: Self::AllocatedMemory) {}
-}
-
-fn decompress_tables(input_buffer: &mut impl Buf, output: &mut Vec<u8>) -> Result<(), DecodeError> {
-    let mut input = BrotliBufReader(input_buffer);
-    let mut writer = VecWriter(output);
-    let mut alloc_u8 = HeapAllocator;
-    let mut input_scratch = alloc_u8.alloc_cell(4096);
-    let mut output_scratch = alloc_u8.alloc_cell(4096);
-
-    brotli::BrotliDecompressCustomIo(
-        &mut input,
-        &mut writer,
-        input_scratch.slice_mut(),
-        output_scratch.slice_mut(),
-        alloc_u8,
-        HeapAllocator,
-        HeapAllocator::default_for_huffman_code(),
-        "Unexpected EOF",
-    )?;
-
-    Ok(())
-}
-
-impl HeapAllocator {
-    fn default_for_huffman_code() -> Self {
-        HeapAllocator
+impl DecodeError {
+    fn invalid<E: ToString>(error: E) -> Self {
+        Self::Invalid(error.to_string())
     }
 }
 
@@ -184,7 +102,7 @@ pub fn convert_woff2_to_ttf(input_buffer: &mut impl Buf) -> Result<Vec<u8>, Deco
 
     let stream_start_remaining = input_buffer.remaining();
     let mut decompressed_tables = Vec::with_capacity(table_directory.uncompressed_length as usize);
-    decompress_tables(input_buffer, &mut decompressed_tables)?;
+    decompress_to_vec(input_buffer, &mut decompressed_tables)?;
     let compressed_size = stream_start_remaining - input_buffer.remaining();
 
     if compressed_size != usize::try_from(header.total_compressed_size).unwrap() + 1 {

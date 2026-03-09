@@ -2,22 +2,43 @@ use alloc::vec::Vec;
 
 use bytes::BufMut;
 
-use crate::buffer_util::{BufExt, SafeBuf};
+use crate::buffer::{BufExt, SafeBuf};
 
 use super::{triplet::COORD_LUT, GlyfDecoderError, Woff2GlyfDecoder};
 
 impl Woff2GlyfDecoder<'_> {
+    fn take_point_counts(
+        &mut self,
+        number_of_contours: i16,
+    ) -> Result<(Vec<u16>, u16), GlyfDecoderError> {
+        let mut n_points_stream = self.n_points_stream;
+        let mut point_counts = Vec::with_capacity(number_of_contours as usize);
+        let mut total_points = 0u16;
+
+        for _ in 0..number_of_contours {
+            let number_of_points = n_points_stream.try_get_255_u16()?;
+            total_points += number_of_points;
+            point_counts.push(number_of_points);
+        }
+
+        self.n_points_stream = n_points_stream;
+        Ok((point_counts, total_points))
+    }
+
     pub(super) fn parse_simple_glyph(
         &mut self,
         number_of_contours: i16,
         glyph_index: u16,
         output_buffer: &mut Vec<u8>,
     ) -> Result<(), GlyfDecoderError> {
-        let mut end_points_of_contours_stream: Vec<u8> = Vec::new();
-        let mut instructions_stream: Vec<u8> = Vec::new();
-        let mut flags_stream: Vec<u8> = Vec::new();
-        let mut x_coordinates_stream: Vec<u8> = Vec::new();
-        let mut y_coordinates_stream: Vec<u8> = Vec::new();
+        let (point_counts, total_points) = self.take_point_counts(number_of_contours)?;
+
+        let mut end_points_of_contours_stream =
+            Vec::with_capacity(number_of_contours as usize * core::mem::size_of::<u16>());
+        let mut instructions_stream = Vec::new();
+        let mut flags_stream = Vec::with_capacity(total_points as usize);
+        let mut x_coordinates_stream = Vec::with_capacity(total_points as usize * 2);
+        let mut y_coordinates_stream = Vec::with_capacity(total_points as usize * 2);
 
         let mut running_total_points: u16 = 0;
         let overlap_simple_flag = match self.overlap_bitmap {
@@ -33,8 +54,7 @@ impl Woff2GlyfDecoder<'_> {
         let mut x = 0i16;
         let mut y = 0i16;
 
-        for _ in 0..number_of_contours {
-            let number_of_points = self.n_points_stream.try_get_255_u16()?;
+        for number_of_points in point_counts {
             running_total_points += number_of_points;
             end_points_of_contours_stream.put_u16(running_total_points - 1);
             for _ in 0..number_of_points {
@@ -112,6 +132,7 @@ impl Woff2GlyfDecoder<'_> {
         }
 
         let instruction_length = self.glyph_stream.try_get_255_u16()?;
+        instructions_stream.reserve_exact(instruction_length as usize);
         self.instruction_stream
             .try_copy_to_buf(&mut instructions_stream, instruction_length as usize)?;
 

@@ -1,7 +1,7 @@
 const LATO_V22_LATIN_REGULAR: &[u8] = include_bytes!("data/lato-v22-latin-regular.woff2");
 
 use std::{
-    fs,
+    env, fs,
     path::PathBuf,
     time::{SystemTime, UNIX_EPOCH},
 };
@@ -11,7 +11,7 @@ fn unique_temp_path(filename: &str) -> PathBuf {
         .duration_since(UNIX_EPOCH)
         .unwrap()
         .as_nanos();
-    std::env::temp_dir().join(format!("woff2-rs-{unique}-{filename}"))
+    env::temp_dir().join(format!("woff2-rs-{unique}-{filename}"))
 }
 
 #[test]

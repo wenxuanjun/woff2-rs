@@ -5,12 +5,11 @@ use bytes::Buf;
 use four_cc::FourCC;
 use thiserror::Error;
 
-use crate::{
-    buffer_util::{pad_to_multiple_of_four, Base128Error, BufExt, SafeBuf, TruncatedError},
-    checksum::{calculate_checksum, set_checksum_adjustment, ChecksumError},
-    glyf::{decode_glyf_table, GlyfDecoderError},
-    ttf_header::TableRecord,
-};
+use crate::buffer::pad_to_multiple_of_four;
+use crate::buffer::{Base128Error, BufExt, SafeBuf, TruncatedError};
+use crate::checksum::{calculate_checksum, set_checksum_adjustment, ChecksumError};
+use crate::glyf::{decode_glyf_table, GlyfDecoderError};
+use crate::sfnt::TableRecord;
 
 #[derive(Error, Debug)]
 pub enum TableDirectoryError {
@@ -34,6 +33,7 @@ impl From<TruncatedError> for TableDirectoryError {
         TableDirectoryError::Truncated
     }
 }
+
 /// A WOFF2 table directory.
 pub struct Woff2TableDirectory {
     pub tables: Vec<TableDirectoryEntry>,
@@ -345,7 +345,7 @@ mod tests {
 
     #[test]
     fn test_sample_font() {
-        let mut buffer = &LATO_V22_LATIN_REGULAR[..];
+        let mut buffer = LATO_V22_LATIN_REGULAR;
         let header = Woff2Header::from_buf(&mut buffer).unwrap();
         let tables = Woff2TableDirectory::from_buf(&mut buffer, header.num_tables).unwrap();
 

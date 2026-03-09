@@ -8,11 +8,12 @@ extern crate std;
 
 pub mod decode;
 
-mod buffer_util;
+mod brotli;
+mod buffer;
 mod checksum;
 mod glyf;
-mod magic_numbers;
-mod ttf_header;
+mod magic;
+mod sfnt;
 mod woff2;
 
 #[cfg(test)]

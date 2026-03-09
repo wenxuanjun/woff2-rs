@@ -1,6 +1,6 @@
 [package]
 name = "woff2-no-std"
-version = "0.3.1"
+version = "0.3.2"
 edition = "2021"
 authors = [
     "Brian Hanechak <brianh@cimpress.com>",

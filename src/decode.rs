@@ -100,12 +100,16 @@ pub fn convert_woff2_to_ttf(input_buffer: &mut impl Buf) -> Result<Vec<u8>, Deco
         None
     };
 
-    let stream_start_remaining = input_buffer.remaining();
-    let mut decompressed_tables = Vec::with_capacity(table_directory.uncompressed_length as usize);
-    decompress_to_vec(input_buffer, &mut decompressed_tables)?;
-    let compressed_size = stream_start_remaining - input_buffer.remaining();
+    let compressed_stream_size = usize::try_from(header.total_compressed_size).unwrap();
+    if input_buffer.remaining() < compressed_stream_size {
+        Err(DecodeError::Invalid("Truncated compressed stream".into()))?;
+    }
 
-    if compressed_size != usize::try_from(header.total_compressed_size).unwrap() + 1 {
+    let mut compressed_stream = (&mut *input_buffer).take(compressed_stream_size);
+    let mut decompressed_tables = Vec::with_capacity(table_directory.uncompressed_length as usize);
+    decompress_to_vec(&mut compressed_stream, &mut decompressed_tables)?;
+
+    if compressed_stream.remaining() != 0 {
         Err(DecodeError::Invalid(
             "Compressed stream size does not match header".into(),
         ))?;

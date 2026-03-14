@@ -1,6 +1,6 @@
 [package]
 name = "woff2-no-std"
-version = "0.3.3"
+version = "0.3.4"
 edition = "2021"
 authors = [
     "Brian Hanechak <brianh@cimpress.com>",
@@ -22,7 +22,6 @@ std = [
     "bytes/std",
     "four-cc/std",
     "thiserror/std",
-    "bitvec/std",
 ]
 
 [dev-dependencies]
@@ -33,4 +32,3 @@ brotli = { version = "8.0.2", default-features = false }
 bytes = { version = "1.11.1", default-features = false }
 four-cc = { version = "0.4.0", default-features = false }
 thiserror = { version = "2.0.18", default-features = false }
-bitvec = { version = "1.0.1", default-features = false, features = ["alloc"] }

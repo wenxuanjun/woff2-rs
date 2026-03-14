@@ -42,7 +42,7 @@ impl Woff2GlyfDecoder<'_> {
 
         let mut running_total_points: u16 = 0;
         let overlap_simple_flag = match self.overlap_bitmap {
-            Some(ob) if ob[glyph_index as usize] => 0x40,
+            Some(ob) if ob.is_set(glyph_index) => 0x40,
             _ => 0x00,
         };
 
@@ -136,7 +136,7 @@ impl Woff2GlyfDecoder<'_> {
         self.instruction_stream
             .try_copy_to_buf(&mut instructions_stream, instruction_length as usize)?;
 
-        if self.bbox_bitmap[glyph_index as usize] {
+        if self.bbox_bitmap.is_set(glyph_index) {
             x_min = SafeBuf::try_get_i16(&mut self.bbox_stream)?;
             y_min = SafeBuf::try_get_i16(&mut self.bbox_stream)?;
             x_max = SafeBuf::try_get_i16(&mut self.bbox_stream)?;

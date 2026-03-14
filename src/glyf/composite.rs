@@ -13,7 +13,7 @@ impl Woff2GlyfDecoder<'_> {
         output_buffer: &mut Vec<u8>,
     ) -> Result<(), GlyfDecoderError> {
         output_buffer.put_i16(-1);
-        if self.bbox_bitmap[glyph_index as usize] {
+        if self.bbox_bitmap.is_set(glyph_index) {
             output_buffer.put_i16(SafeBuf::try_get_i16(&mut self.bbox_stream)?);
             output_buffer.put_i16(SafeBuf::try_get_i16(&mut self.bbox_stream)?);
             output_buffer.put_i16(SafeBuf::try_get_i16(&mut self.bbox_stream)?);
